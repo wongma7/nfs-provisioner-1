@@ -1,61 +1,19 @@
-# Kubernetes repository infrastructure
+# External Provisioners
+This repository houses community-maintained external provisioners plus a helper library for building them. Each provisioner is contained in its own directory so for information on how to use one, enter its directory and read its documentation. The library is contained in the `lib` directory.
 
-This repository contains repository infrastructure tools for use in
-`kubernetes` and `kubernetes-incubator` repositories.  Examples:
+## What is an 'external provisioner'?
+External provisioners work just like in-tree dynamic PV provisioners. A `StorageClass` object can specify an external provisioner instance to be its `provisioner` like it can in-tree provisioners such as GCE or AWS. The instance will then watch for `PersistentVolumeClaims` that ask for the `StorageClass` and automatically create `PersistentVolumes` for them. For more information on how dynamic provisioning works, see [the docs](http://kubernetes.io/docs/user-guide/persistent-volumes/) or [this blog post](http://blog.kubernetes.io/2016/10/dynamic-provisioning-and-storage-in-kubernetes.html).
 
-- Boilerplate verification
-- Gofmt verification
-- Golang build infrastructure
-
----
-
-## Using this repository
-
-This repository can be used via some golang "vendoring" mechanism 
-(such as glide), or it can be used via
-[git subtree](http://git.kernel.org/cgit/git/git.git/plain/contrib/subtree/git-subtree.txt).
-
-### Using "vendoring"
-
-The exact mechanism to pull in this repository will vary depending on
-the tool you use. However, unless you end up having this repository
-at the root of your project's repository you wll probably need to 
-make sure you use the `--rootdir` command line parameter to let the
-`verify-boilerplate.sh` know its location, eg:
-
-    verify-boilerplate.sh --rootdir=/home/myrepo
-
-### Using `git subtree`
-
-When using the git subtree mechanism, this repository should be placed in the 
-top level of your project.
-
-To add `repo-infra` to your repository, use the following commands from the 
-root directory of **your** repository.
-
-First, add a git remote for the `repo-infra` repository:
-
+## How to use the library
+```go
+import (
+  "github.com/kubernetes-incubator/nfs-provisioner/lib/controller"
+)
 ```
-$ git remote add repo-infra git://github.com/kubernetes/repo-infra
-```
+You need to implement the `Provisioner` interface then pass your implementation to a `ProvisionController` and run the controller. The controller takes care of deciding when to call your implementation's `Provision` or `Delete`. The interface and controller are defined in the above package.
 
-This is not strictly necessary, but reduces the typing required for subsequent
-commands.
+Note that because your provisioner needs to depend also on [client-go](https://github.com/kubernetes/client-go) and the library itself depends on a specific version of client-go, to avoid a dependency conflict you must ensure you use the exact same version of client-go as the library.
 
-Next, use `git subtree add` to create a new subtree in the `repo-infra`
-directory within your project:
+For a full guide on how to write an external provisioner using the library that demonstrates the above, see [here](docs/demo/hostpath-provisioner/).
 
-```
-$ git subtree add -P repo-infra repo-infra master --squash
-```
-
-After this command, you will have:
-
-1.  A `repo-infra` directory in your project containing the content of **this**
-    project
-2.  2 new commits in the active branch:
-  1.  A commit that squashes the git history of the `repo-infra` project
-  2.  A merge commit whose ancestors are:
-    1.  The `HEAD` of the branch prior to when you ran `git subtree add`
-    2.  The commit containing the squashed `repo-infra` commits
-
+If you want your provisioner to be compatible with users' RBAC/PSP/OpenShift authorization policies also consider reading [this](docs/authorization.md).
